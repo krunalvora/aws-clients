@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# Sample: 
+# aws route53 --profile staging5-super-user list-resource-record-sets --output table --query "ResourceRecordSets[*].[Name,ResourceRecords[].Value | [0]]" --hosted-zone-id Z295JFDI5KZ86S
+
+source "`dirname $0`"/../aws-profiles
+while getopts ":ha:n:" opt; do
+  case ${opt} in
+    h )
+      echo "Options:"
+      echo "    -h  Display this help message."
+      echo "    -a  AWS account or set env var AWS_ACCOUNT."
+      echo "    -n  Name (Regex allowed) of the recordset."
+      exit 0
+      ;;
+    a )
+      ACCOUNT=$OPTARG
+      ;;
+    n )
+      NAME=$OPTARG
+      ;;
+    \? )
+      echo "Invalid option: $OPTARG" 1>&2
+      ;;
+    : )
+      echo "Invalid option: $OPTARG requires an argument" 1>&2
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+if [[ -z "$ACCOUNT" ]]; then
+  if [[ -z "$AWS_ACCOUNT" ]] ; then
+    echo "Either set env var AWS_ACCOUNT or provide it via -a option."
+    exit 1
+  else
+    ACCOUNT=$AWS_ACCOUNT
+  fi
+fi
+PROFILE=${!ACCOUNT}
+QUERY="ResourceRecordSets[*].[Name,Type,ResourceRecords[].Value|[0]]"
+OUTPUT="text"
+hostedzones_count=`aws route53 --profile $PROFILE list-hosted-zones --query "HostedZones[] | length(@)" --output text`
+
+for ((i = 0 ; i < $hostedzones_count ; i++ ));
+do
+  hostedzone=`aws route53 --profile $PROFILE list-hosted-zones --query "HostedZones[].Id | [$i]" --output text`
+  if [ -z "$NAME" ]; then
+    aws route53 list-resource-record-sets \
+      --hosted-zone-id "$hostedzone" \
+      --query $QUERY \
+      --output table \
+      --profile=$PROFILE
+  else
+    aws route53 list-resource-record-sets \
+      --hosted-zone-id "$hostedzone" \
+      --query $QUERY \
+      --output $OUTPUT \
+      --profile=$PROFILE | grep $NAME
+  fi
+done

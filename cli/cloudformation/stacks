@@ -1,0 +1,56 @@
+#!/bin/bash
+
+
+source "`dirname $0`"/../aws-profiles
+
+while getopts ":ha:n:" opt; do
+  case ${opt} in
+    h )
+      echo "Options:"
+      echo "    -h  Display this help message."
+      echo "    -a  AWS account or set env var AWS_ACCOUNT."
+      echo "    -n  Name of the stack or partial name."
+      exit 0
+      ;;
+    a )
+      ACCOUNT="$OPTARG"
+      ;;
+    n )
+      NAME=$OPTARG
+      ;;
+    \? )
+      echo "Invalid option: $OPTARG" 1>&2
+      ;;
+    : )
+      echo "Invalid option: $OPTARG requires an argument" 1>&2
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+if [[ -z "$ACCOUNT" ]]; then
+  if [[ -z "$AWS_ACCOUNT" ]] ; then
+    echo "Either set env var AWS_ACCOUNT or provide it via -a option."
+    exit 1
+  else
+    ACCOUNT=$AWS_ACCOUNT
+  fi
+fi
+
+PROFILE=${!ACCOUNT}
+SHOW_ATTRIBUTES="StackName,StackStatus"
+OUTPUT="text"
+if [ -z "$NAME" ]
+then
+QUERY="Stacks[*].[$SHOW_ATTRIBUTES]"
+else
+QUERY="Stacks[?contains(@.StackName,\`$NAME\`)==\`true\`].[$SHOW_ATTRIBUTES]"
+fi
+
+STACKS=$(aws cloudformation describe-stacks --query $QUERY --output $OUTPUT --profile=$PROFILE)
+
+IFS=$'\n'
+for stack in $STACKS    
+do
+    echo "$stack$\t$ACCOUNT"
+done

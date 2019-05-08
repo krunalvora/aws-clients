@@ -1,0 +1,71 @@
+#!/bin/bash
+source "`dirname $0`"/../aws-profiles
+
+while getopts ":ha:n:v:" opt; do
+  case ${opt} in
+    h )
+      echo "Options:"
+      echo "    -h  Display this help message."
+      echo "    -a  AWS Account or set env var AWS_ACCOUNT."
+      echo "    -n  Name of the subnet or partial name."
+      echo "    -v  VPC name - Does not support regex yet"
+      exit 0
+      ;;
+    a )
+      ACCOUNT=$OPTARG
+      ;;
+    n )
+      NAME=$OPTARG
+      ;;
+    v )
+      VPC=$OPTARG
+      ;;
+    \? )
+      echo "Invalid option: $OPTARG" 1>&2
+      ;;
+    : )
+      echo "Invalid option: $OPTARG requires an argument" 1>&2
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+
+
+if [[ -z "$ACCOUNT" ]]; then
+  if [[ -z "$AWS_ACCOUNT" ]] ; then
+    echo "Either set env var AWS_ACCOUNT or provide it via -a option."
+    exit 1
+  else
+    ACCOUNT=$AWS_ACCOUNT
+  fi
+fi
+
+PROFILE=${!ACCOUNT}
+OUTPUT="text"
+
+# if [[ ! -z "$ACCOUNT" ]]; then
+#   VPCID=`aws --profile $PROFILE ec2 describe-vpcs --query "Vpcs[*]|[?Tags[?Key=='Name']|[0].Value=='*$VPC*'].VpcId" --output text`
+  
+#   echo "VPC: $VPC | $VPCID"
+#     aws ec2 describe-subnets \
+#   --output $OUTPUT \
+#   --profile=$PROFILE \
+#   --filters "Name=vpc-id, Values=$VPCID"
+#   # --query $QUERY \
+  
+# else
+  QUERY="Subnets[*].[Tags[?Key=='Name']|[0].Value,SubnetId,CidrBlock,VpcId]" # .Instances[*].[Tags[?Key=='Name']|[0].Value,PrivateIpAddress,InstanceId]"
+  if [ -z "$NAME" ]; then
+  	aws ec2 describe-subnets \
+  	--query $QUERY \
+  	--output $OUTPUT \
+  	--profile=$PROFILE
+  else
+  	aws ec2 describe-subnets \
+  	--query $QUERY \
+  	--output $OUTPUT \
+  	--profile=$PROFILE \
+  	--filters "Name=tag:Name, Values=*$NAME*"
+  fi
+# fi

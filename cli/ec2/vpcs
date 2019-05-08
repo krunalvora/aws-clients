@@ -1,0 +1,48 @@
+#!/bin/bash
+
+source "`dirname $0`"/../aws-profiles
+
+while getopts ":ha:n:i:" opt; do
+  case ${opt} in
+    h )
+      echo "Options:"
+      echo "    -h  Display this help message."
+      echo "    -a  AWS account or set env var AWS_ACCOUNT."
+      echo "    -n  Name of the VPC or partial name."
+      echo "    -i  VPC ID.i(Not available yet!)"
+      exit 0
+      ;;
+    a )
+      ACCOUNT="$OPTARG"
+      ;;
+    n )
+      NAME=$OPTARG
+      ;;
+    i )
+      INSTANCE_ID=$OPTARG
+      ;;
+    \? )
+      echo "Invalid option: $OPTARG" 1>&2
+      ;;
+    : )
+      echo "Invalid option: $OPTARG requires an argument" 1>&2
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+if [[ -z "$ACCOUNT" ]]; then
+  if [[ -z "$AWS_ACCOUNT" ]] ; then
+    echo "Either set env var AWS_ACCOUNT or provide it via -a option."
+    exit 1
+  else
+    ACCOUNT=$AWS_ACCOUNT
+  fi
+fi
+PROFILE=${!ACCOUNT}
+QUERY="Vpcs[*].[Tags[?Key=='Name'].Value|[0],VpcId,CidrBlock]"
+OUTPUT="text"
+aws ec2 describe-vpcs \
+	--query  $QUERY \
+	--output $OUTPUT \
+	--profile=$PROFILE

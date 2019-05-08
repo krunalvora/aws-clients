@@ -1,0 +1,53 @@
+#!/bin/bash
+: <<'END'
+Sample:
+
+aws --profile prod-super-user elb describe-load-balancers --query 'LoadBalancerDescriptions[?contains(@.DNSName,`kafka`) == `true`]'
+
+END
+
+source "`dirname $0`"/../aws-profiles
+
+while getopts ":ha:n:d:" opt; do
+  case ${opt} in
+    h )
+      echo "Options:"
+      echo "    -h  Display this help message."
+      echo "    -a  AWS account or set env var AWS_ACCOUNT."
+      echo "    -n  Name of the load balancer or partial name."
+      exit 0
+      ;;
+    a )
+      ACCOUNT="$OPTARG"
+      ;;
+    n )
+      NAME=$OPTARG
+      ;;
+    \? )
+      echo "Invalid option: $OPTARG" 1>&2
+      ;;
+    : )
+      echo "Invalid option: $OPTARG requires an argument" 1>&2
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+if [[ -z "$ACCOUNT" ]]; then
+  if [[ -z "$AWS_ACCOUNT" ]] ; then
+    echo "Either set env var AWS_ACCOUNT or provide it via -a option."
+    exit 1
+  else
+    ACCOUNT=$AWS_ACCOUNT
+  fi
+fi
+PROFILE=${!ACCOUNT}
+OUTPUT="text"
+SHOW_ATTRIBUTES="LoadBalancerName,DNSName,Scheme,VPCId"
+if [ -z "$NAME" ]
+then
+QUERY="LoadBalancerDescriptions[*].[$SHOW_ATTRIBUTES]"
+else
+QUERY="LoadBalancerDescriptions[?contains(@.LoadBalancerName,\`$NAME\`)==\`true\`].[$SHOW_ATTRIBUTES]"
+fi
+aws --profile $PROFILE elb describe-load-balancers --query $QUERY --output $OUTPUT

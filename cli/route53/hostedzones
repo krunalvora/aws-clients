@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Sample: 
+# aws route53 --profile staging5-super-user list-hosted-zones --query "HostedZones[*].[Name,Id,ResourceRecordSetCount]" --output table 
+
+while getopts ":hp:n:" opt; do
+  case ${opt} in
+    h )
+      echo "Options:"
+      echo "    -h  Display this help message."
+      echo "    -p  AWS Profile or set env var AWS_PROFILE."
+      echo "    -n  Name (Regex allowed) of the hosted zone."
+      exit 0
+      ;;
+    p )
+      PROFILE=$OPTARG
+      ;;
+    \? )
+      echo "Invalid option: $OPTARG" 1>&2
+      ;;
+    : )
+      echo "Invalid option: $OPTARG requires an argument" 1>&2
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+if [[ -z "$PROFILE" ]]; then
+  if [[ -z "$AWS_PROFILE" ]] ; then
+    echo "Either set env var AWS_PROFILE or provide it via -p option."
+    exit 1
+  else
+    PROFILE=$AWS_PROFILE
+  fi
+fi
+
+echo "PROFILE :: $PROFILE"
+QUERY="HostedZones[*].[Name,Id,ResourceRecordSetCount]"
+OUTPUT="table"
+
+aws route53 list-hosted-zones \
+  --query $QUERY \
+  --output $OUTPUT \
+  --profile=$PROFILE

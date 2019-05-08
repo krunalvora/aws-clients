@@ -1,0 +1,50 @@
+#!/bin/bash
+
+source "`dirname $0`"/../aws-profiles
+
+while getopts ":ha:n:" opt; do
+  case ${opt} in
+    h )
+      echo "Options:"
+      echo "    -h  Display this help message."
+      echo "    -a  AWS account or set env var AWS_ACCOUNT."
+      echo "    -n  Name (Regex allowed) of the export."
+      exit 0
+      ;;
+    a )
+      ACCOUNT="$OPTARG"
+      ;;
+    n )
+      NAME=$OPTARG
+      ;;
+    \? )
+      echo "Invalid option: $OPTARG" 1>&2
+      ;;
+    : )
+      echo "Invalid option: $OPTARG requires an argument" 1>&2
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+if [[ -z "$ACCOUNT" ]]; then
+  if [[ -z "$AWS_ACCOUNT" ]] ; then
+    echo "Either set env var AWS_ACCOUNT or provide it via -a option."
+    exit 1
+  else
+    ACCOUNT=$AWS_ACCOUNT
+  fi
+fi
+PROFILE=${!ACCOUNT}
+OUTPUT="text"
+
+if [ -z "$NAME" ]; then
+	aws cloudformation list-exports \
+	--profile=$PROFILE
+else
+	aws cloudformation list-exports \
+	--output $OUTPUT \
+	--profile=$PROFILE \
+  | grep -i $NAME | awk '{ printf "%-50s %-30s\n", $3, $4 }'
+fi
+echo
